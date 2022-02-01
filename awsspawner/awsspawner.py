@@ -279,7 +279,7 @@ def _run_task(
             dict_data["capacityProviderStrategy"] = [{"base": 1, "capacityProvider": "FARGATE_SPOT", "weight": 1}]
         else:
             dict_data["launchType"] = launch_type
-    client.run_task(**dict_data)
+    return client.run_task(**dict_data)
 
 
 class AsyncIteratorBuffer:
