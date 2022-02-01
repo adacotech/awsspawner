@@ -35,7 +35,7 @@ authors = ["kackyt <t_kaki@nextappli.com>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 boto3 = "^1.20.46"
-jupyterhub = "^2.1.1"
+jupyterhub = ">=1.4.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
