@@ -46,10 +46,6 @@ class AWSSpawner(Spawner):
     authentication_class = Type(AWSSpawnerAuthentication, config=True)
     authentication = Instance(AWSSpawnerAuthentication)
 
-    @default("authentication_class")
-    def _default_authentication_class(self):
-        return type(AWSSpawnerAuthentication)
-
     @default("authentication")
     def _default_authentication(self):
         return self.authentication_class(parent=self)
