@@ -207,7 +207,7 @@ def _get_task_status(logger, session, task_cluster_name, task_arn):
     return status
 
 
-def _describe_task(logger, session, task_cluster_name, task_arn):
+def _describe_task(_, session, task_cluster_name, task_arn):
     client = session.client("ecs")
 
     described_tasks = client.describe_tasks(cluster=task_cluster_name, tasks=[task_arn])
@@ -226,6 +226,7 @@ def _describe_task(logger, session, task_cluster_name, task_arn):
 
 
 def _run_task(
+    _,
     session,
     launch_type,
     assign_public_ip,
