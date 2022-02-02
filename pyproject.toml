@@ -29,7 +29,7 @@ skip = '''
 [tool.poetry]
 name = "awsspawner"
 version = "0.1.0"
-description = ""
+description = "Spawns JupyterHub single user servers in Docker containers running in AWS ECS Task (include EC2、Fargate、Fargate Spot)"
 authors = ["kackyt <t_kaki@nextappli.com>"]
 
 [tool.poetry.dependencies]
