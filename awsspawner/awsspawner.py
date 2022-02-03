@@ -42,6 +42,7 @@ class AWSSpawner(Spawner):
     notebook_scheme = Unicode(config=True)
     notebook_args = List(trait=Unicode, config=True)
     args_join = Unicode(config=True)
+    image = Unicode("", config=True)
 
     authentication_class = Type(AWSSpawnerAuthentication, config=True)
     authentication = Instance(AWSSpawnerAuthentication)
@@ -116,6 +117,7 @@ class AWSSpawner(Spawner):
                 self.task_subnets,
                 self.cmd + args,
                 self.get_env(),
+                self.image,
                 self.args_join,
             )
             task_arn = run_response["tasks"][0]["taskArn"]
@@ -238,6 +240,7 @@ def _run_task(
     task_subnets,
     task_command_and_args,
     task_env,
+    image,
     args_join="",
 ):
     if args_join != "":
@@ -273,6 +276,9 @@ def _run_task(
             },
         },
     }
+
+    if image != "":
+        dict_data["overrides"]["containerOverrides"][0]["image"] = image
 
     if launch_type != traitlets.Undefined:
         if launch_type == "FARGATE_SPOT":
