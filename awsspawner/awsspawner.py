@@ -100,7 +100,7 @@ class AWSSpawner(Spawner):
         task_port = self.port
         session = self.authentication.get_session(self.aws_region)
 
-        task_definition = _find_or_create_task_definition(session, self.task_definition_family, self.task_container_name, self.image)
+        task_definition = _find_or_create_task_definition(self.log, session, self.task_definition_family, self.task_container_name, self.image)
 
         if task_definition["arn"] is None:
             raise Exception("TaskDefinition not found.")
@@ -207,15 +207,17 @@ def _get_task_ip(logger, session, task_cluster_name, task_arn):
     return ip_address
 
 
-def _find_or_create_task_definition(session, task_definition_family, task_container_name, image):
+def _find_or_create_task_definition(logger, session, task_definition_family, task_container_name, image):
     client = session.client("ecs")
     task_definitions = client.list_task_definitions(familyPrefix=task_definition_family, status="ACTIVE", sort="DESC")
 
     create_definition = None
 
     for arn in task_definitions["taskDefinitionArns"]:
+        logger.info(f"search {arn}")
         definition = client.describe_task_definition(taskDefinition=arn)
-        container_definition = next(filter(lambda x: x["name"] == task_container_name, definition["taskDefinition"]["containerDefinitions"]))
+        logger.info(definition)
+        container_definition = next(filter(lambda x: x["name"] == task_container_name, definition["taskDefinition"]["containerDefinitions"]), None)
 
         if container_definition:
             if image == "" or container_definition["image"] == image:
