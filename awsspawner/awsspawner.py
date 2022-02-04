@@ -36,7 +36,7 @@ class AWSSpawner(Spawner):
     task_role_arn = Unicode(config=True)
     task_cluster_name = Unicode(config=True)
     task_container_name = Unicode(config=True)
-    task_definition_arn = Unicode(config=True)
+    task_definition_family = Unicode(config=True)
     task_security_groups = List(trait=Unicode, config=True)
     task_subnets = List(trait=Unicode, config=True)
     notebook_scheme = Unicode(config=True)
@@ -100,6 +100,11 @@ class AWSSpawner(Spawner):
         task_port = self.port
         session = self.authentication.get_session(self.aws_region)
 
+        task_definition = _find_or_create_task_definition(session, self.task_definition_family, self.task_container_name, self.image)
+
+        if task_definition["arn"] is None:
+            raise Exception("TaskDefinition not found.")
+
         self.progress_buffer.write({"progress": 0.5, "message": "Starting server..."})
         try:
             self.calling_run_task = True
@@ -112,12 +117,11 @@ class AWSSpawner(Spawner):
                 self.task_role_arn,
                 self.task_cluster_name,
                 self.task_container_name,
-                self.task_definition_arn,
+                task_definition["arn"],
                 self.task_security_groups,
                 self.task_subnets,
                 self.cmd + args,
                 self.get_env(),
-                self.image,
                 self.args_join,
             )
             task_arn = run_response["tasks"][0]["taskArn"]
@@ -203,6 +207,33 @@ def _get_task_ip(logger, session, task_cluster_name, task_arn):
     return ip_address
 
 
+def _find_or_create_task_definition(session, task_definition_family, task_container_name, image):
+    client = session.client("ecs")
+    task_definitions = client.list_task_definitions(familyPrefix=task_definition_family, status="ACTIVE", sort="DESC")
+
+    create_definition = None
+
+    for arn in task_definitions["taskDefinitionArns"]:
+        definition = client.describe_task_definition(taskDefinition=arn)
+        container_definition = next(filter(lambda x: x["name"] == task_container_name, definition["taskDefinition"]["containerDefinitions"]))
+
+        if container_definition:
+            if image == "" or container_definition["image"] == image:
+                return {"found": True, "arn": arn}
+            elif create_definition is None:
+                container_definition["image"] = image
+                create_definition = definition["taskDefinition"]
+
+    if create_definition:
+        # create
+        res = client.register_task_definition(family=task_definition_family, **create_definition)
+        arn = res["taskDefinition"]["taskDefinitionArn"]
+
+        return {"found": False, "arn": arn}
+
+    return {"found": False, "arn": None}
+
+
 def _get_task_status(logger, session, task_cluster_name, task_arn):
     described_task = _describe_task(logger, session, task_cluster_name, task_arn)
     status = described_task["lastStatus"] if described_task else ""
@@ -240,7 +271,6 @@ def _run_task(
     task_subnets,
     task_command_and_args,
     task_env,
-    image,
     args_join="",
 ):
     if args_join != "":
@@ -276,9 +306,6 @@ def _run_task(
             },
         },
     }
-
-    if image != "":
-        dict_data["overrides"]["containerOverrides"][0]["image"] = image
 
     if launch_type != traitlets.Undefined:
         if launch_type == "FARGATE_SPOT":
