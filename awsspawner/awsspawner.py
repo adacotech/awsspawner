@@ -78,7 +78,7 @@ class AWSSpawner(Spawner):
 
         return state
 
-    def poll(self):
+    async def poll(self):
         # Return values, as dictacted by the Jupyterhub framework:
         # 0                   == not running, or not starting up, i.e. we need to call start
         # None                == running, or not finished starting
