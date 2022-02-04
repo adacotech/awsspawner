@@ -83,6 +83,7 @@ class AWSSpawner(Spawner):
         # 0                   == not running, or not starting up, i.e. we need to call start
         # None                == running, or not finished starting
         # 1, or anything else == error
+        session = self.authentication.get_session(self.aws_region)
 
         return (
             None
@@ -90,7 +91,7 @@ class AWSSpawner(Spawner):
             else 0
             if self.task_arn == ""
             else None
-            if (_get_task_status(self.log, self._aws_endpoint(), self.task_cluster_name, self.task_arn)) in ALLOWED_STATUSES
+            if (_get_task_status(self.log, session, self.task_cluster_name, self.task_arn)) in ALLOWED_STATUSES
             else 1
         )
 
