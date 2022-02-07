@@ -159,8 +159,12 @@ class AWSSpawner(Spawner):
         self.log.debug("Starting spawner")
 
         profile = self.user_options.get("profile")
+        self.log.info(f"profile {profile}")
+
         if profile:
             options = self.select_profile(profile)
+            self.log.info(f"profile option = {options}")
+            self.log.info(f"dict = {self.__dict__}")
             self.__dict__.update(options)
 
         task_port = self.port
@@ -280,9 +284,9 @@ def _find_or_create_task_definition(logger, session, task_definition_family, tas
     create_definition = None
 
     for arn in task_definitions["taskDefinitionArns"]:
-        logger.info(f"search {arn}")
+        logger.debug(f"search {arn}")
         definition = client.describe_task_definition(taskDefinition=arn)
-        logger.info(definition)
+        logger.debug(definition)
         container_definition = next(filter(lambda x: x["name"] == task_container_name, definition["taskDefinition"]["containerDefinitions"]), None)
 
         if container_definition:
