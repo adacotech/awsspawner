@@ -5,7 +5,7 @@ import traitlets
 from jupyterhub.spawner import Spawner
 from tornado import gen
 from tornado.concurrent import Future
-from traitlets import Bool, Instance, List, TraitType, Type, Unicode, default
+from traitlets import Bool, Dict, Instance, List, TraitType, Tuple, Type, Unicode, default
 from traitlets.config.configurable import Configurable
 
 
@@ -53,6 +53,66 @@ class AWSSpawner(Spawner):
 
     task_arn = Unicode("")
 
+    # options form
+    profiles = List(
+        trait=Tuple(Unicode(), Unicode(), Dict()),
+        default_value=[],
+        minlen=0,
+        config=True,
+        help="""List of profiles to offer for selection. Signature is:
+            List(Tuple( Unicode, Unicode, Dict )) corresponding to
+            profile display name, unique key, Spawner class, dictionary of spawner config options.
+            The first three values will be exposed in the input_template as {display}, {key}, and {type}""",
+    )
+
+    config = Dict(default_value={}, config=True, help="Dictionary of config values to apply to wrapped spawner class.")
+
+    form_template = Unicode(
+        """<label for="profile">Select a job profile:</label>
+        <select class="form-control" name="profile" required autofocus>
+        {input_template}
+        </select>
+        """,
+        config=True,
+        help="""Template to use to construct options_form text. {input_template} is replaced with
+            the result of formatting input_template against each item in the profiles list.""",
+    )
+
+    first_template = Unicode("selected", config=True, help="Text to substitute as {first} in input_template")
+
+    input_template = Unicode(
+        """
+        <option value="{key}" {first}>{display}</option>""",
+        config=True,
+        help="""Template to construct {input_template} in form_template. This text will be formatted
+            against each item in the profiles list, in order, using the following key names:
+            ( display, key, type ) for the first three items in the tuple, and additionally
+            first = "checked" (taken from first_template) for the first item in the list, so that
+            the first item starts selected.""",
+    )
+
+    @default("options_form")
+    def _options_form_default(self):
+        if len(self.profiles) == 0:
+            return None
+        temp_keys = [dict(display=p[0], key=p[1], type=p[2], first="") for p in self.profiles]
+        temp_keys[0]["first"] = self.first_template
+        text = "".join([self.input_template.format(**tk) for tk in temp_keys])
+        return self.form_template.format(input_template=text)
+
+    def options_from_form(self, formdata):
+        # Default to first profile if somehow none is provided
+        return dict(profile=formdata.get("profile", [self.profiles[0][1]])[0])
+
+    # load/get/clear : save/restore child_profile (and on load, use it to update child class/config)
+
+    def select_profile(self, profile):
+        # Select matching profile, or do nothing (leaving previous or default config in place)
+        for p in self.profiles:
+            if p[1] == profile:
+                return p[2]
+        return None
+
     # We mostly are able to call the AWS API to determine status. However, when we yield the
     # event loop to create the task, if there is a poll before the creation is complete,
     # we must behave as though we are running/starting, but we have no IDs to use with which
@@ -97,6 +157,11 @@ class AWSSpawner(Spawner):
 
     async def start(self):
         self.log.debug("Starting spawner")
+
+        profile = self.user_options.get("profile")
+        if profile:
+            options = self.select_profile(profile)
+            self.__dict__.update(options)
 
         task_port = self.port
         session = self.authentication.get_session(self.aws_region)
