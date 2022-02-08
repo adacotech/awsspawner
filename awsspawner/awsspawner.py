@@ -5,7 +5,7 @@ import traitlets
 from jupyterhub.spawner import Spawner
 from tornado import gen
 from tornado.concurrent import Future
-from traitlets import Bool, Dict, Instance, List, TraitType, Tuple, Type, Unicode, default
+from traitlets import Bool, Dict, Instance, Int, List, TraitType, Tuple, Type, Unicode, Union, default
 from traitlets.config.configurable import Configurable
 
 
@@ -29,9 +29,11 @@ class AWSSpawnerSecretAccessKeyAuthentication(AWSSpawnerAuthentication):
 
 
 class AWSSpawner(Spawner):
-
+    cpu = Int(default_value=-1, config=True)
+    memory = Int(default_value=-1, config=True)
+    memory_reservation = Int(default_value=-1, config=True)
     aws_region = Unicode(config=True)
-    launch_type = Unicode(config=True)
+    launch_type = Union([List(), Unicode()], config=True)
     assign_public_ip = Bool(False, config=True)
     task_role_arn = Unicode(config=True)
     task_cluster_name = Unicode(config=True)
@@ -159,7 +161,7 @@ class AWSSpawner(Spawner):
         self.log.debug("Starting spawner")
 
         profile = self.user_options.get("profile")
-        self.log.info(f"profile {profile}")
+        self.log.debug(f"profile {profile}")
 
         if profile:
             options = self.select_profile(profile)
@@ -195,6 +197,9 @@ class AWSSpawner(Spawner):
                 self.task_subnets,
                 self.cmd + args,
                 self.get_env(),
+                self.cpu,
+                self.memory,
+                self.memory_reservation,
                 self.args_join,
             )
             task_arn = run_response["tasks"][0]["taskArn"]
@@ -353,6 +358,9 @@ def _run_task(
     task_subnets,
     task_command_and_args,
     task_env,
+    cpu,
+    memory,
+    memory_reservation,
     args_join="",
 ):
     if args_join != "":
@@ -364,7 +372,6 @@ def _run_task(
         "cluster": task_cluster_name,
         "taskDefinition": task_definition_arn,
         "overrides": {
-            "taskRoleArn": task_role_arn,
             "containerOverrides": [
                 {
                     "command": task_command_and_args,
@@ -389,8 +396,22 @@ def _run_task(
         },
     }
 
+    if task_definition_arn != traitlets.Undefined:
+        dict_data["overrides"]["taskRoleArn"] = task_role_arn
+
+    if cpu >= 0:
+        dict_data["overrides"]["cpu"] = cpu
+
+    if memory >= 0:
+        dict_data["overrides"]["memory"] = memory
+
+    if memory_reservation >= 0:
+        dict_data["overrides"]["memoryReservation"] = memory_reservation
+
     if launch_type != traitlets.Undefined:
-        if launch_type == "FARGATE_SPOT":
+        if isinstance(launch_type, list):
+            dict_data["capacityProviderStrategy"] = launch_type
+        elif launch_type == "FARGATE_SPOT":
             dict_data["capacityProviderStrategy"] = [{"base": 1, "capacityProvider": "FARGATE_SPOT", "weight": 1}]
         else:
             dict_data["launchType"] = launch_type
