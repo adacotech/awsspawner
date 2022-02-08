@@ -163,14 +163,12 @@ class AWSSpawner(Spawner):
 
         if profile:
             options = self.select_profile(profile)
-            self.log.info(f"profile option = {options}")
             for key, value in options.items():
                 attr = getattr(self, key)
                 if isinstance(attr, dict):
                     attr.update(value)
                 else:
                     setattr(self, key, value)
-            self.log.info(f"dict = {self.__dict__}")
 
         task_port = self.port
         session = self.authentication.get_session(self.aws_region)
@@ -289,9 +287,7 @@ def _find_or_create_task_definition(logger, session, task_definition_family, tas
     create_definition = None
 
     for arn in task_definitions["taskDefinitionArns"]:
-        logger.debug(f"search {arn}")
         definition = client.describe_task_definition(taskDefinition=arn)
-        logger.debug(definition)
         container_definition = next(filter(lambda x: x["name"] == task_container_name, definition["taskDefinition"]["containerDefinitions"]), None)
 
         if container_definition:
