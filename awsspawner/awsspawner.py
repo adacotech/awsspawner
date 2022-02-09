@@ -236,7 +236,7 @@ class AWSSpawner(Spawner):
                 raise Exception("Task {} is {}".format(self.task_arn, status))
 
             await gen.sleep(1)
-            self.progress_buffer.write({"progress": 10 + num_polls / max_polls * 90, "message": "Waiting server to become running.."})
+            self.progress_buffer.write({"progress": 10 + num_polls / max_polls * 90, "message": "Waiting for server to become running.."})
 
         self.progress_buffer.write({"progress": 100, "message": "Server started"})
         await gen.sleep(1)
@@ -371,6 +371,7 @@ def _run_task(
     dict_data = {
         "cluster": task_cluster_name,
         "taskDefinition": task_definition_arn,
+        "enableExecuteCommand": True,
         "overrides": {
             "containerOverrides": [
                 {
