@@ -180,7 +180,7 @@ class AWSSpawner(Spawner):
         if task_definition["arn"] is None:
             raise Exception("TaskDefinition not found.")
 
-        self.progress_buffer.write({"progress": 0.5, "message": "Starting server..."})
+        self.progress_buffer.write({"progress": 0.5, "message": "Run task..."})
         try:
             self.calling_run_task = True
             args = self.get_args() + self.notebook_args
@@ -209,7 +209,7 @@ class AWSSpawner(Spawner):
 
         self.task_arn = task_arn
 
-        max_polls = 50
+        max_polls = self.start_timeout / 2
         num_polls = 0
         task_ip = ""
         while task_ip == "":
@@ -219,11 +219,11 @@ class AWSSpawner(Spawner):
 
             task_ip = _get_task_ip(self.log, session, self.task_cluster_name, task_arn)
             await gen.sleep(1)
-            self.progress_buffer.write({"progress": 1 + num_polls / max_polls})
+            self.progress_buffer.write({"progress": 1 + num_polls / max_polls * 10, "message": "Getting network address.."})
 
         self.progress_buffer.write({"progress": 2})
 
-        max_polls = self.start_timeout
+        max_polls = self.start_timeout - num_polls
         num_polls = 0
         status = ""
         while status != "RUNNING":
@@ -236,7 +236,7 @@ class AWSSpawner(Spawner):
                 raise Exception("Task {} is {}".format(self.task_arn, status))
 
             await gen.sleep(1)
-            self.progress_buffer.write({"progress": 2 + num_polls / max_polls * 98})
+            self.progress_buffer.write({"progress": 10 + num_polls / max_polls * 90, "message": "Waiting server to become running.."})
 
         self.progress_buffer.write({"progress": 100, "message": "Server started"})
         await gen.sleep(1)
