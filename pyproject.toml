@@ -28,7 +28,7 @@ skip = '''
 
 [tool.poetry]
 name = "jupyterhub-awsspawner"
-version = "0.0.12"
+version = "0.1.0"
 description = "Spawns JupyterHub single user servers in Docker containers running in AWS ECS Task (include EC2、Fargate、Fargate Spot)"
 authors = ["kackyt <t_kaki@nextappli.com>"]
 repository = "https://github.com/adacotech/awsspawner"
